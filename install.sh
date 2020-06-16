@@ -215,7 +215,7 @@ END
 echo "Final application setup"
 pacman -S --needed --noconfirm xorg-server xorg-xinit xorg-xrandr xf86-video-intel mesa libvirt ebtables dnsmasq bridge-utils virt-manager firefox zsh-completions wget curl transmission-cli tldr signal-desktop ffmpeg vlc rsync bleachbit neofetch man-db man-pages texinfo ufw clamav rkhunter util-linux tlp powertop throttled unzip unrar p7zip net-tools nmap xf86-input-libinput tree htop python go python-pip acpi whois speedtest-cli adb ntp strace tcpdump tcpreplay wireshark-qt clang cmake gdb
 sudo systemctl enable --now lenovo_fix.service
-yay -S slack-desktop spotify libreoffice codium-bin s-tui cava
+yay -S slack-desktop spotify libreoffice codium-bin s-tui cava protonmail-bridge
 sudo pip3 install somafm colorama requests
 
 echo "Hardening TCP/IP stack"
