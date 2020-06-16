@@ -100,18 +100,35 @@ sed -i 's/#COMPRESSION_OPTIONS=()/COMPRESSION_OPTIONS=(-9)/g' /etc/mkinitcpio.co
 mkinitcpio -p linux
 mkinitcpio -p linux-lts
 
+tee -a /etc/pacman.conf << END
+[repo-ck]
+Server = http://repo-ck.com/$arch
+END
+pacman-key -r 5EE46C4C && pacman-key --lsign-key 5EE46C4C
+pacman -Sy linux-ck-skylake
+
 echo "Setting up systemd-boot"
 bootctl --path=/boot install
 
 mkdir -p /boot/loader/
 touch /boot/loader/loader.conf
 tee -a /boot/loader/loader.conf << END
-default arch
+default archck
 timeout 0
 editor 0
 END
 
 mkdir -p /boot/loader/entries/
+
+touch /boot/loader/entries/archck.conf
+tee -a /boot/loader/entries/archck.conf << END
+title Arch Linux CK
+linux /vmlinuz-linux-ck
+initrd /intel-ucode.img
+initrd /initramfs-linux-ck.img
+options rd.luks.name=$(blkid -s UUID -o value /dev/nvme0n1p2)=cryptlvm root=/dev/vg0/root resume=/dev/vg0/swap rd.luks.options=discard elevator=none i915.fastboot=1 i915.enable_psr=1 quiet loglevel=3 splash rw
+END
+
 touch /boot/loader/entries/arch.conf
 tee -a /boot/loader/entries/arch.conf << END
 title Arch Linux
@@ -212,12 +229,6 @@ ExecStart=
 ExecStart=-/usr/bin/agetty --autologin $user_name --noclear %I \$TERM
 END
 
-echo "Final application setup"
-pacman -S --needed --noconfirm xorg-server xorg-xinit xorg-xrandr xf86-video-intel mesa libvirt ebtables dnsmasq bridge-utils virt-manager firefox zsh-completions wget curl transmission-cli tldr signal-desktop ffmpeg vlc rsync bleachbit neofetch man-db man-pages texinfo ufw clamav rkhunter util-linux tlp powertop throttled unzip unrar p7zip net-tools nmap xf86-input-libinput tree htop python go python-pip acpi whois speedtest-cli adb ntp strace tcpdump tcpreplay wireshark-qt clang cmake gdb
-sudo systemctl enable --now lenovo_fix.service
-yay -S slack-desktop spotify libreoffice codium-bin s-tui cava protonmail-bridge
-sudo pip3 install somafm colorama requests
-
 echo "Hardening TCP/IP stack"
 ufw default deny
 ufw enable
@@ -277,6 +288,12 @@ net.ipv4.conf.all.secure_redirects = 1 #CentOS Wiki says 0 here.
 #CentOS Wiki
 net.ipv4.tcp_max_syn_backlog = 1280
 END
+
+echo "Final application setup"
+pacman -Syu --needed --noconfirm xorg-server xorg-xinit xorg-xrandr xf86-video-intel mesa libvirt ebtables dnsmasq bridge-utils virt-manager firefox zsh-completions wget curl transmission-cli tldr signal-desktop ffmpeg vlc rsync bleachbit neofetch man-db man-pages texinfo ufw clamav rkhunter util-linux tlp powertop throttled unzip unrar p7zip net-tools nmap xf86-input-libinput tree htop python go python-pip acpi whois speedtest-cli adb ntp strace tcpdump tcpreplay wireshark-qt clang cmake gdb
+sudo systemctl enable --now lenovo_fix.service
+yay -S slack-desktop spotify libreoffice codium-bin s-tui cava protonmail-bridge
+sudo pip3 install somafm colorama requests
 
 gpasswd -a $user_name libvirt
 gpasswd -a $user_name kvm
