@@ -67,33 +67,43 @@ genfstab -U /mnt >> /mnt/etc/fstab
 
 echo "Configuring new system"
 arch-chroot /mnt /bin/bash <<EOF
+
 echo "Setting system clock"
 ln -sf /usr/share/zoneinfo/$continent_city /etc/localtime
 hwclock --systohc --localtime
+
 echo "Setting locales"
 echo "en_US.UTF-8 UTF-8" >> /etc/locale.gen
 echo "LANG=en_US.UTF-8" >> /etc/locale.conf
 locale-gen
+
 echo "Adding persistent keymap"
 echo "KEYMAP=us" > /etc/vconsole.conf
+
 echo "Setting hostname"
 echo $hostname > /etc/hostname
+
 echo "Setting root password"
 echo -en "$root_password\n$root_password" | passwd
+
 #echo "Creating new user"
 #useradd -m -G wheel -s /bin/bash $user_name
 #usermod -a -G video $user_name
 #echo -en "$user_password\n$user_password" | passwd $user_name
+
 echo "Generating initramfs"
 sed -i 's/^HOOKS.*/HOOKS=(base systemd autodetect keyboard sd-vconsole modconf block sd-encrypt sd-lvm2 filesystems fsck shutdown)/' /etc/mkinitcpio.conf
 sed -i 's/^MODULES.*/MODULES=(ext4 i915 lz4 lz4_compress)/' /etc/mkinitcpio.conf
 sed -i 's/^BINARIES.*/BINARIES=(fsck fsck.ext4)/' /etc/mkinitcpio.conf
 sed -i 's/#COMPRESSION="lz4"/COMPRESSION="lz4"/g' /etc/mkinitcpio.conf
 sed -i 's/#COMPRESSION_OPTIONS=()/COMPRESSION_OPTIONS=(-9)/g' /etc/mkinitcpio.conf
+
 mkinitcpio -p linux
 mkinitcpio -p linux-lts
+
 echo "Setting up systemd-boot"
 bootctl --path=/boot install
+
 mkdir -p /boot/loader/
 touch /boot/loader/loader.conf
 tee -a /boot/loader/loader.conf << END
@@ -101,6 +111,7 @@ default arch
 timeout 0
 editor 0
 END
+
 mkdir -p /boot/loader/entries/
 touch /boot/loader/entries/arch.conf
 tee -a /boot/loader/entries/arch.conf << END
@@ -110,6 +121,7 @@ initrd /intel-ucode.img
 initrd /initramfs-linux.img
 options rd.luks.name=$(blkid -s UUID -o value /dev/nvme0n1p2)=cryptlvm root=/dev/vg0/root resume=/dev/vg0/swap rd.luks.options=discard elevator=none i915.fastboot=1 i915.enable_psr=1 quiet loglevel=3 splash rw
 END
+
 touch /boot/loader/entries/archlts.conf
 tee -a /boot/loader/entries/archlts.conf << END
 title Arch Linux LTS
@@ -118,9 +130,11 @@ initrd /intel-ucode.img
 initrd /initramfs-linux-lts.img
 options rd.luks.name=$(blkid -s UUID -o value /dev/nvme0n1p2)=cryptlvm root=/dev/vg0/root resume=/dev/vg0/swap rd.luks.options=discard elevator=none i915.fastboot=1 i915.enable_psr=1 quiet loglevel=3 splash rw
 END
+
 echo "Setting up Pacman hook for automatic systemd-boot updates"
 mkdir -p /etc/pacman.d/hooks/
 touch /etc/pacman.d/hooks/systemd-boot.hook
+
 tee -a /etc/pacman.d/hooks/systemd-boot.hook << END
 [Trigger]
 Type = Package
@@ -131,8 +145,10 @@ Description = Updating systemd-boot
 When = PostTransaction
 Exec = /usr/bin/bootctl update
 END
+
 echo "Setting up Pacman hook for Mirror Sync"
 touch /etc/pacman.d/hooks/mirrorupgrade.hook
+
 tee -a /etc/pacman.d/hooks/mirrorupgrade.hook << END
 [Trigger]
 Operation = Upgrade
@@ -144,6 +160,7 @@ When = PostTransaction
 Depends = reflector
 Exec = /bin/sh -c "reflector -a 2 -l 100 -f 10 --sort score --save /etc/pacman.d/mirrorlist; rm -f /etc/pacman.d/mirrorlist.pacnew"
 END
+
 echo "Setting up Scheduler Rules"
 mkdir -p /etc/udev.d/
 touch /etc/udev.d/60-scheduler.rules
@@ -155,12 +172,16 @@ ACTION=="add|change", KERNEL=="sd[a-z]|mmcblk[0-9]*", ATTR{queue/rotational}=="0
 # set scheduler for rotating disks
 ACTION=="add|change", KERNEL=="sd[a-z]", ATTR{queue/rotational}=="1", ATTR{queue/scheduler}="bfq"
 END
+
 echo "Setting Journal Limit"
 sed -i 's/#SystemMaxUse=/SystemMaxUse=100M/g' /etc/systemd/journald.conf
+
 echo "Enabling periodic TRIM"
 systemctl enable fstrim.timer
+
 echo "Enabling NetworkManager"
 systemctl enable NetworkManager
+
 echo "Adding user as a sudoer"
 echo '%wheel ALL=(ALL) ALL' | EDITOR='tee -a' visudo
 EOF
