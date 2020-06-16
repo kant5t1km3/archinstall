@@ -2,9 +2,9 @@
 
 encryption_passphrase=""
 root_password=""
-#user_password=""
+user_password=""
 hostname=""
-#user_name=""
+user_name=""
 continent_city=""
 swap_size="16"
 
@@ -18,8 +18,7 @@ timedatectl set-ntp true
 # pacman -Sy --noconfirm gnupg archlinux-keyring
 
 echo "Syncing packages database and Finding Mirrors"
-pacman -Sy --noconfirm
-pacman -S reflector --noconfirm
+pacman -Sy reflector --noconfirm
 reflector -a 2 -l 100 -f 10 --sort score --save /etc/pacman.d/mirrorlist
 
 echo "Creating partition tables"
@@ -86,10 +85,10 @@ echo $hostname > /etc/hostname
 echo "Setting root password"
 echo -en "$root_password\n$root_password" | passwd
 
-#echo "Creating new user"
-#useradd -m -G wheel -s /bin/bash $user_name
-#usermod -a -G video $user_name
-#echo -en "$user_password\n$user_password" | passwd $user_name
+echo "Creating new user"
+useradd -m -G wheel -s /bin/bash $user_name
+mkdir -p /home/"$user_name" && chown "$user_name":wheel /home/"$user_name"
+echo -en "$user_password\n$user_password" | passwd $user_name
 
 echo "Generating initramfs"
 sed -i 's/^HOOKS.*/HOOKS=(base systemd autodetect keyboard sd-vconsole modconf block sd-encrypt sd-lvm2 filesystems fsck shutdown)/' /etc/mkinitcpio.conf
@@ -179,11 +178,26 @@ sed -i 's/#SystemMaxUse=/SystemMaxUse=100M/g' /etc/systemd/journald.conf
 echo "Enabling periodic TRIM"
 systemctl enable fstrim.timer
 
-echo "Enabling NetworkManager"
+echo "Enabling Network Manager"
 systemctl enable NetworkManager
 
-echo "Adding user as a sudoer"
+echo "User Config"
 echo '%wheel ALL=(ALL) ALL' | EDITOR='tee -a' visudo
+sed -i "s/^#Color$/Color/" /etc/pacman.conf
+sed -i "/#VerbosePkgLists/a ILoveCandy" /etc/pacman.conf
+sed -i "s/-j2/-j$(nproc)/;s/^#MAKEFLAGS/MAKEFLAGS/" /etc/makepkg.conf
+systembeepoff
+
+echo "Setting autologin"
+mkdir -p /etc/systemd/system/getty@tty1.service.d
+tee -a /etc/systemd/system/getty@tty1.service.d/override.conf << END
+[Service]
+Type=Simple
+ExecStart=
+ExecStart=-/usr/bin/agetty --autologin $user_name --noclear %I \$TERM
+END
+
+# Exit arch-chroot
 EOF
 
 umount -R /mnt
