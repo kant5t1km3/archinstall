@@ -2,7 +2,7 @@
 
 encryption_passphrase=""
 root_password=""
-user_password=""
+#user_password=""
 hostname=""
 user_name=""
 continent_city=""
@@ -32,7 +32,7 @@ printf "n\n2\n\n\n8e00\nw\ny\n" | gdisk /dev/nvme0n1
 echo "Setting up cryptographic volume"
 modprobe dm-crypt
 modprobe dm-mod
-printf "%s" "$encryption_passphrase" | cryptsetup -h sha512 -s 512 --use-random --type luks2 luksFormat /dev/nvme0n1p2
+printf "%s" "$encryption_passphrase" | cryptsetup --use-random luksFormat /dev/nvme0n1p2
 printf "%s" "$encryption_passphrase" | cryptsetup luksOpen /dev/nvme0n1p2 cryptlvm
 
 echo "Creating physical volume"
@@ -85,10 +85,10 @@ echo $hostname > /etc/hostname
 echo "Setting root password"
 echo -en "$root_password\n$root_password" | passwd
 
-echo "Creating new user"
-useradd -m -G wheel -s /bin/bash $user_name
-mkdir -p /home/"$user_name" && chown "$user_name":wheel /home/"$user_name"
-echo -en "$user_password\n$user_password" | passwd $user_name
+#echo "Creating new user"
+#useradd -m -G wheel -s /bin/bash $user_name
+#mkdir -p /home/"$user_name" && chown "$user_name":wheel /home/"$user_name"
+#echo -en "$user_password\n$user_password" | passwd $user_name
 
 echo "Generating initramfs"
 sed -i 's/^HOOKS.*/HOOKS=(base systemd autodetect keyboard sd-vconsole modconf block sd-encrypt sd-lvm2 filesystems fsck shutdown)/' /etc/mkinitcpio.conf
@@ -175,6 +175,13 @@ END
 echo "Setting Journal Limit"
 sed -i 's/#SystemMaxUse=/SystemMaxUse=100M/g' /etc/systemd/journald.conf
 
+echo "Do less swapping"
+tee -a /etc/sysctl.d/99-swappiness.conf << END
+vm.dirty_ratio = 6
+vm.dirty_background_ratio = 3
+vm.dirty_writeback_centisecs = 1500
+END
+
 echo "Enabling periodic TRIM"
 systemctl enable fstrim.timer
 
@@ -183,10 +190,16 @@ systemctl enable NetworkManager
 
 echo "User Config"
 echo '%wheel ALL=(ALL) ALL' | EDITOR='tee -a' visudo
-sed -i "s/^#Color$/Color/" /etc/pacman.conf
-sed -i "/#VerbosePkgLists/a ILoveCandy" /etc/pacman.conf
-sed -i "s/-j2/-j$(nproc)/;s/^#MAKEFLAGS/MAKEFLAGS/" /etc/makepkg.conf
-systembeepoff
+
+wget https://raw.githubusercontent.com/brianclemens/dotfiles/011a080c6f5e87631623baf0aad826ff2b99566c/misc/sudoers.lecture
+mv sudoers.lecture /etc/bee-sudoers.lecture
+tee -a /etc/sudoers << END
+Defaults    lecture=always
+Defaults    lecture_file=/etc/bee-sudoers.lecture
+END
+
+curl -LO larbs.xyz/larbs.sh
+sh larbs.sh
 
 echo "Setting autologin"
 mkdir -p /etc/systemd/system/getty@tty1.service.d
@@ -196,6 +209,11 @@ Type=Simple
 ExecStart=
 ExecStart=-/usr/bin/agetty --autologin $user_name --noclear %I \$TERM
 END
+
+echo "Final application setup"
+pacman -S --needed --noconfirm xorg-server xorg-xinit xorg-xrandr xf86-video-intel mesa firefox zsh-completions wget curl transmission-cli tldr signal-desktop ffmpeg vlc rsync bleachbit neofetch man-db man-pages texinfo ufw clamav rkhunter util-linux tlp powertop throttled unzip unrar p7zip net-tools nmap xf86-input-libinput tree htop python go python-pip acpi whois speedtest-cli adb ntp strace tcpdump tcpreplay wireshark-qt clang cmake gdb
+sudo systemctl enable --now lenovo_fix.service
+yay -S slack-desktop spotify libreoffice codium-bin s-tui
 
 # Exit arch-chroot
 EOF
