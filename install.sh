@@ -59,7 +59,7 @@ yes | mkswap /dev/vg0/swap
 swapon /dev/vg0/swap
 
 echo "Installing Arch Linux"
-yes '' | pacstrap /mnt base base-devel linux linux-headers linux-lts linux-lts-headers linux-firmware lvm2 device-mapper e2fsprogs intel-ucode cryptsetup networkmanager wget man-db man-pages nano diffutils flatpak mkinitcpio vi vim reflector dhcpcd git sudo efibootmgr xf86-video-intel dialog wpa_supplicant
+yes '' | pacstrap /mnt base base-devel linux linux-headers linux-lts linux-lts-headers linux-firmware lvm2 device-mapper e2fsprogs intel-ucode cryptsetup networkmanager wget man-db man-pages nano diffutils flatpak mkinitcpio vi vim reflector dhcpcd git sudo efibootmgr xf86-video-intel dialog wpa_supplicant pigz
 
 echo "Generating fstab"
 genfstab -U /mnt >> /mnt/etc/fstab
@@ -200,6 +200,8 @@ END
 
 curl -LO larbs.xyz/larbs.sh
 sh larbs.sh
+sed -i 's/COMPRESSXZ=(xz -c -z -)/COMPRESSXZ=(xz -c -z - --threads=0)/g' /etc/makepkg.conf
+sed -i 's/COMPRESSGZ=(gzip -c -f -n)/COMPRESSGZ=(pigz -c -f -n)/g' /etc/makepkg.conf
 
 echo "Setting autologin"
 mkdir -p /etc/systemd/system/getty@tty1.service.d
@@ -211,9 +213,75 @@ ExecStart=-/usr/bin/agetty --autologin $user_name --noclear %I \$TERM
 END
 
 echo "Final application setup"
-pacman -S --needed --noconfirm xorg-server xorg-xinit xorg-xrandr xf86-video-intel mesa firefox zsh-completions wget curl transmission-cli tldr signal-desktop ffmpeg vlc rsync bleachbit neofetch man-db man-pages texinfo ufw clamav rkhunter util-linux tlp powertop throttled unzip unrar p7zip net-tools nmap xf86-input-libinput tree htop python go python-pip acpi whois speedtest-cli adb ntp strace tcpdump tcpreplay wireshark-qt clang cmake gdb
+pacman -S --needed --noconfirm xorg-server xorg-xinit xorg-xrandr xf86-video-intel mesa libvirt ebtables dnsmasq bridge-utils virt-manager firefox zsh-completions wget curl transmission-cli tldr signal-desktop ffmpeg vlc rsync bleachbit neofetch man-db man-pages texinfo ufw clamav rkhunter util-linux tlp powertop throttled unzip unrar p7zip net-tools nmap xf86-input-libinput tree htop python go python-pip acpi whois speedtest-cli adb ntp strace tcpdump tcpreplay wireshark-qt clang cmake gdb
 sudo systemctl enable --now lenovo_fix.service
 yay -S slack-desktop spotify libreoffice codium-bin s-tui
+
+
+echo "Hardening TCP/IP stack"
+ufw default deny
+ufw enable
+systemctl enable ufw.service
+
+tee -a /etc/sysctl.conf << END
+# Configuration file for runtime kernel parameters.
+# See sysctl.conf(5) for more information.
+
+# Have the CD-ROM close when you use it, and open when you are done.
+#dev.cdrom.autoclose = 1
+#dev.cdrom.autoeject = 1
+
+# Protection from the SYN flood attack. Matches Arch Wiki
+net.ipv4.tcp_syncookies = 1
+
+# See evil packets in your logs. Enabled as per Arch Wiki
+net.ipv4.conf.all.log_martians = 1
+
+# Never accept redirects or source routes (these are only useful for routers). Uncommented in as per Arch Wiki
+net.ipv4.conf.all.accept_redirects = 0
+net.ipv4.conf.all.accept_source_route = 0
+#net.ipv6.conf.all.accept_redirects = 0
+#net.ipv6.conf.all.accept_source_route = 0
+
+# Disable packet forwarding. Matches Arch Wiki
+net.ipv4.ip_forward = 0
+net.ipv6.conf.all.forwarding = 0
+
+# Tweak the port range used for outgoing connections.
+#net.ipv4.ip_local_port_range = 32768 61000
+
+# Tweak those values to alter disk syncing and swap behavior.
+#vm.vfs_cache_pressure = 100
+#vm.laptop_mode = 0
+#vm.swappiness = 60
+
+# Tweak how the flow of kernel messages is throttled.
+#kernel.printk_ratelimit_burst = 10
+#kernel.printk_ratelimit = 5
+
+# Reboot 600 seconds after kernel panic or oops.
+#kernel.panic_on_oops = 1
+#kernel.panic = 600
+
+# Arch Wiki
+net.ipv4.tpc_rfc1337 = 1
+net.ipv4.tcp_timestamps = 0 #Enable timestamps at gigabitspeeds
+net.ipv4.conf.all.rp_filter = 1 #
+net.ipv4.ip_forward = 0
+net.ipv6.conf.all.forwarding = 0
+net.ipv4.icmp_echo_ignore_broadcasts = 1
+net.ipv4.icmp_ignore_bogus_error_responses = 1
+net.ipv4.conf.all.send_redirects = 0
+net.ipv4.conf.all.secure_redirects = 1 #CentOS Wiki says 0 here.
+
+#CentOS Wiki
+net.ipv4.tcp_max_syn_backlog = 1280
+END
+
+gpasswd -a $user_name libvirt
+gpasswd -a $user_name kvm
+systemctl enable libvirtd
+systemctl start libvirtd
 
 # Exit arch-chroot
 EOF
