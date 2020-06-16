@@ -22,6 +22,8 @@ pacman -Sy reflector --noconfirm
 reflector -a 2 -l 100 -f 10 --sort score --save /etc/pacman.d/mirrorlist
 
 echo "Creating partition tables"
+blkdiscard /dev/nvme0n1
+printf "o\nw\ny\n" | gdisk /dev/nvme0n1
 printf "n\n1\n4096\n+512M\nef00\nw\ny\n" | gdisk /dev/nvme0n1
 printf "n\n2\n\n\n8e00\nw\ny\n" | gdisk /dev/nvme0n1
 
