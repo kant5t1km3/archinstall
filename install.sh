@@ -113,7 +113,13 @@ drive_id="$(blkid -s UUID -o value /dev/nvme0n1p2)"
 
 echo "Setting up EFISTUB boot"
 tee -a /etc/make-efi.sh << END
-efibootmgr -d /dev/nvme0n1 -p 1 -c -L "Arch Linux CK" -l /vmlinuz-linux-ck -u "rd.luks.name=$drive_id=cryptlvm root=/dev/vg0/root resume=/dev/vg0/swap rd.luks.options=discard elevator=none i915.fastboot=1 i915.enable_psr=1 quiet loglevel=3 splash rw initrd=\intel-ucode.img initrd=\initramfs-linux-ck.img"
+cmdline="initrd=\intel-ucode.img rd.luks.options=discard elevator=none i915.fastboot=1 i915.enable_psr=1 quiet loglevel=3 splash rw"
+
+efibootmgr -d /dev/nvme0n1 -p 0 -c -L "Arch Linux CK" -l /vmlinuz-linux-ck -u "rd.luks.name=$drive_id=cryptlvm root=/dev/vg0/root resume=/dev/vg0/swap initrd=\initramfs-linux-ck.img $cmdline"
+efibootmgr -d /dev/nvme0n1 -p 1 -c -L "Arch Linux" -l /vmlinuz-linux -u "rd.luks.name=$drive_id=cryptlvm root=/dev/vg0/root resume=/dev/vg0/swap initrd=\initramfs-linux.img $cmdline"
+efibootmgr -d /dev/nvme0n1 -p 2 -c -L "Arch Linux LTS" -l /vmlinuz-linux-lts -u "rd.luks.name=$drive_id=cryptlvm root=/dev/vg0/root resume=/dev/vg0/swap initrd=\initramfs-linux-lts.img $cmdline"
+
+efibootmgr -o 0,1,2
 END
 chmod +x /etc/make-efi.sh
 sh make-efi
