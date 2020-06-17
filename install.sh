@@ -160,23 +160,21 @@ sh make-efi
 
 echo "Setting up Pacman hook for automatic systemd-boot updates"
 mkdir -p /etc/pacman.d/hooks/
-touch /etc/pacman.d/hooks/systemd-boot.hook
 
-tee -a /etc/pacman.d/hooks/systemd-boot.hook << END
-# Edit to Exec = /usr/bin/bootctl update for systemd-boot
-[Trigger]
-Type = Package
-Operation = Upgrade
-Target = systemd
-[Action]
-Description = Updating systemd-boot
-When = PostTransaction
-Exec = sh /etc/make-efi.sh
-END
+#touch /etc/pacman.d/hooks/systemd-boot.hook
+#tee -a /etc/pacman.d/hooks/systemd-boot.hook << END
+#[Trigger]
+#Type = Package
+#Operation = Upgrade
+#Target = systemd
+#[Action]
+#Description = Updating systemd-boot
+#When = PostTransaction
+#Exec = /usr/bin/bootctl update
+#END
 
 echo "Setting up Pacman hook for Mirror Sync"
 touch /etc/pacman.d/hooks/mirrorupgrade.hook
-
 tee -a /etc/pacman.d/hooks/mirrorupgrade.hook << END
 [Trigger]
 Operation = Upgrade
