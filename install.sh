@@ -111,75 +111,79 @@ pacman -Sy linux-ck-skylake
 
 drive_id="$(blkid -s UUID -o value /dev/nvme0n1p2)"
 
-echo "Setting up EFISTUB boot"
-tee -a /etc/make-efi.sh << END
-cmdline="initrd=\intel-ucode.img rd.luks.options=discard elevator=none i915.fastboot=1 i915.enable_psr=1 quiet loglevel=3 splash rw"
-drive_id="$(blkid -s UUID -o value /dev/nvme0n1p2)"
+#echo "Setting up EFISTUB boot"
+#tee -a /etc/make-efi.sh << END
+#cmdline="initrd=\intel-ucode.img rd.luks.options=discard elevator=none i915.fastboot=1 i915.enable_psr=1 quiet loglevel=3 splash rw"
+#drive_id="$(blkid -s UUID -o value /dev/nvme0n1p2)"
 
-efibootmgr -d /dev/nvme0n1 -p 0 -t 0 -c -L "Arch Linux CK" -l /vmlinuz-linux-ck -u "rd.luks.name=$drive_id=cryptlvm root=/dev/vg0/root resume=/dev/vg0/swap initrd=\initramfs-linux-ck.img $cmdline"
+#efibootmgr -d /dev/nvme0n1 -p 0 -t 0 -c -L "Arch Linux CK" -l /vmlinuz-linux-ck -u "rd.luks.name=$drive_id=cryptlvm root=/dev/vg0/root resume=/dev/vg0/swap initrd=\initramfs-linux-ck.img $cmdline"
 #efibootmgr -d /dev/nvme0n1 -p 1 -t 0 -c -L "Arch Linux" -l /vmlinuz-linux -u "rd.luks.name=$drive_id=cryptlvm root=/dev/vg0/root resume=/dev/vg0/swap initrd=\initramfs-linux.img $cmdline"
 #efibootmgr -d /dev/nvme0n1 -p 2 -t 0 -c -L "Arch Linux LTS" -l /vmlinuz-linux-lts -u "rd.luks.name=$drive_id=cryptlvm root=/dev/vg0/root resume=/dev/vg0/swap initrd=\initramfs-linux-lts.img $cmdline"
 
-efibootmgr -o 0
+#efibootmgr -o 0
 
+#END
+#chmod +x /etc/make-efi.sh
+#sh make-efi
+
+echo "Setting up systemd-boot"
+bootctl --path=/boot install
+
+mkdir -p /boot/loader/
+touch /boot/loader/loader.conf
+tee -a /boot/loader/loader.conf << END
+default archck.conf
+timeout 0
+editor 0
 END
-chmod +x /etc/make-efi.sh
-sh make-efi
 
-#echo "Setting up systemd-boot"
-#bootctl --path=/boot install
+mkdir -p /boot/loader/entries/
 
-#mkdir -p /boot/loader/
-#touch /boot/loader/loader.conf
-#tee -a /boot/loader/loader.conf << END
-#default archck.conf
-#timeout 0
-#editor 0
-#END
+touch /boot/loader/entries/archck.conf
+tee -a /boot/loader/entries/archck.conf << END
+title Arch Linux CK
+linux /vmlinuz-linux-ck-skylake
+initrd /intel-ucode.img
+initrd /initramfs-linux-ck-skylake.img
+options rd.luks.name=$drive_id=cryptlvm root=/dev/vg0/root resume=/dev/vg0/swap rd.luks.options=discard elevator=none i915.fastboot=1 i915.enable_psr=1 quiet loglevel=3 splash rw
+END
 
-#mkdir -p /boot/loader/entries/
+touch /boot/loader/entries/arch.conf
+tee -a /boot/loader/entries/arch.conf << END
+title Arch Linux
+linux /vmlinuz-linux
+initrd /intel-ucode.img
+initrd /initramfs-linux.img
+options rd.luks.name=$drive_id=cryptlvm root=/dev/vg0/root resume=/dev/vg0/swap rd.luks.options=discard elevator=none i915.fastboot=1 i915.enable_psr=1 quiet loglevel=3 splash rw
+END
 
-#touch /boot/loader/entries/archck.conf
-#tee -a /boot/loader/entries/archck.conf << END
-#title Arch Linux CK
-#linux /vmlinuz-linux-ck
-#initrd /intel-ucode.img
-#initrd /initramfs-linux-ck.img
-#options rd.luks.name=$drive_id=cryptlvm root=/dev/vg0/root resume=/dev/vg0/swap rd.luks.options=discard elevator=none i915.fastboot=1 i915.enable_psr=1 quiet loglevel=3 splash rw
-#END
-
-#touch /boot/loader/entries/arch.conf
-#tee -a /boot/loader/entries/arch.conf << END
-#title Arch Linux
-#linux /vmlinuz-linux
-#initrd /intel-ucode.img
-#initrd /initramfs-linux.img
-#options rd.luks.name=$drive_id=cryptlvm root=/dev/vg0/root resume=/dev/vg0/swap rd.luks.options=discard elevator=none i915.fastboot=1 i915.enable_psr=1 quiet loglevel=3 splash rw
-#END
-
-#touch /boot/loader/entries/archlts.conf
-#tee -a /boot/loader/entries/archlts.conf << END
-#title Arch Linux LTS
-#linux /vmlinuz-linux-lts
-#initrd /intel-ucode.img
-#initrd /initramfs-linux-lts.img
-#options rd.luks.name=$drive_id=cryptlvm root=/dev/vg0/root resume=/dev/vg0/swap rd.luks.options=discard elevator=none i915.fastboot=1 i915.enable_psr=1 quiet loglevel=3 splash rw
-#END
+touch /boot/loader/entries/archlts.conf
+tee -a /boot/loader/entries/archlts.conf << END
+title Arch Linux LTS
+linux /vmlinuz-linux-lts
+initrd /intel-ucode.img
+initrd /initramfs-linux-lts.img
+options rd.luks.name=$drive_id=cryptlvm root=/dev/vg0/root resume=/dev/vg0/swap rd.luks.options=discard elevator=none i915.fastboot=1 i915.enable_psr=1 quiet loglevel=3 splash rw
+END
 
 echo "Setting up Pacman hook for automatic systemd-boot updates"
 mkdir -p /etc/pacman.d/hooks/
 
-#touch /etc/pacman.d/hooks/systemd-boot.hook
-#tee -a /etc/pacman.d/hooks/systemd-boot.hook << END
-#[Trigger]
-#Type = Package
-#Operation = Upgrade
-#Target = systemd
-#[Action]
-#Description = Updating systemd-boot
-#When = PostTransaction
-#Exec = /usr/bin/bootctl update
-#END
+touch /etc/pacman.d/hooks/systemd-boot.hook
+tee -a /etc/pacman.d/hooks/systemd-boot.hook << END
+[Trigger]
+Type = Package
+Operation = Upgrade
+Target = systemd
+[Action]
+Description = Updating systemd-boot
+When = PostTransaction
+Exec = /usr/bin/bootctl update
+END
+
+mkinitcpio -p linux-ck-skylake
+mkinitcpio -p linux
+mkinitcpio -p linux-lts
 
 echo "Setting up Pacman hook for Mirror Sync"
 touch /etc/pacman.d/hooks/mirrorupgrade.hook
