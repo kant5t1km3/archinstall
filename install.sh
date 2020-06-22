@@ -104,10 +104,10 @@ mkinitcpio -p linux-lts
 
 tee -a /etc/pacman.conf << END
 [repo-ck]
-Server = http://repo-ck.com/$arch
+Server = http://repo-ck.com/x86_64
 END
 pacman-key -r 5EE46C4C && pacman-key --lsign-key 5EE46C4C
-pacman -Sy linux-ck-skylake
+pacman -Sy linux-ck-skylake linux-ck-skylake-headers
 
 drive_id="$(blkid -s UUID -o value /dev/nvme0n1p2)"
 
@@ -242,14 +242,14 @@ sh larbs.sh
 sed -i 's/COMPRESSXZ=(xz -c -z -)/COMPRESSXZ=(xz -c -z - --threads=0)/g' /etc/makepkg.conf
 sed -i 's/COMPRESSGZ=(gzip -c -f -n)/COMPRESSGZ=(pigz -c -f -n)/g' /etc/makepkg.conf
 
-echo "Setting autologin"
-mkdir -p /etc/systemd/system/getty@tty1.service.d
-tee -a /etc/systemd/system/getty@tty1.service.d/override.conf << END
-[Service]
-Type=Simple
-ExecStart=
-ExecStart=-/usr/bin/agetty --autologin $user_name --noclear %I \$TERM
-END
+#echo "Setting autologin"
+#mkdir -p /etc/systemd/system/getty@tty1.service.d
+#tee -a /etc/systemd/system/getty@tty1.service.d/override.conf << END
+#[Service]
+#Type=Simple
+#ExecStart=
+#ExecStart=-/usr/bin/agetty --autologin $user_name --noclear %I \$TERM
+#END
 
 echo "Hardening TCP/IP stack"
 ufw default deny
@@ -312,22 +312,11 @@ net.ipv4.tcp_max_syn_backlog = 1280
 END
 
 echo "Final application setup"
-
-pacman -R --nocomfirm yay
-git clone https://aur.archlinux.org/yay-bin.git
-cd yay
-makepkg -si
-
 wget https://raw.githubusercontent.com/kant5t1km3/archinstall/master/pkglist 
-pacman -Syu --needed --noconfirm - < pkglist
+pacman -Syu --noconfirm - < pkglist
 sudo systemctl enable --now lenovo_fix.service
 yay -S --noconfirm slack-desktop spotify libreoffice codium-bin s-tui cava protonmail-bridge tuir
 sudo pip3 install somafm colorama requests
-
-gpasswd -a $user_name libvirt
-gpasswd -a $user_name kvm
-systemctl enable libvirtd
-systemctl start libvirtd
 
 # Exit arch-chroot
 EOF
