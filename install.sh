@@ -6,7 +6,7 @@ root_password=""
 hostname=""
 user_name=""
 continent_city=""
-swap_size="16"
+swap_size="32"
 
 echo "Updating system clock"
 timedatectl set-ntp true
@@ -61,7 +61,7 @@ yes | mkswap /dev/vg0/swap
 swapon /dev/vg0/swap
 
 echo "Installing Arch Linux"
-yes '' | pacstrap /mnt base base-devel linux linux-headers linux-lts linux-lts-headers linux-firmware lvm2 device-mapper e2fsprogs intel-ucode cryptsetup networkmanager wget man-db man-pages nano diffutils flatpak mkinitcpio vi vim reflector dhcpcd git sudo efibootmgr xf86-video-intel dialog wpa_supplicant pigz
+yes '' | pacstrap /mnt base base-devel linux linux-headers linux-lts linux-lts-headers linux-firmware lvm2 device-mapper e2fsprogs intel-ucode cryptsetup networkmanager wget man-db man-pages nano diffutils flatpak mkinitcpio vi vim reflector dhcpcd git sudo efibootmgr xf86-video-intel dialog wpa_supplicant pigz ufw
 
 echo "Generating fstab"
 genfstab -U /mnt >> /mnt/etc/fstab
@@ -111,21 +111,6 @@ pacman -Sy linux-ck-skylake linux-ck-skylake-headers
 
 drive_id="$(blkid -s UUID -o value /dev/nvme0n1p2)"
 
-#echo "Setting up EFISTUB boot"
-#tee -a /etc/make-efi.sh << END
-#cmdline="initrd=\intel-ucode.img rd.luks.options=discard elevator=none i915.fastboot=1 i915.enable_psr=1 quiet loglevel=3 splash rw"
-#drive_id="$(blkid -s UUID -o value /dev/nvme0n1p2)"
-
-#efibootmgr -d /dev/nvme0n1 -p 0 -t 0 -c -L "Arch Linux CK" -l /vmlinuz-linux-ck -u "rd.luks.name=$drive_id=cryptlvm root=/dev/vg0/root resume=/dev/vg0/swap initrd=\initramfs-linux-ck.img $cmdline"
-#efibootmgr -d /dev/nvme0n1 -p 1 -t 0 -c -L "Arch Linux" -l /vmlinuz-linux -u "rd.luks.name=$drive_id=cryptlvm root=/dev/vg0/root resume=/dev/vg0/swap initrd=\initramfs-linux.img $cmdline"
-#efibootmgr -d /dev/nvme0n1 -p 2 -t 0 -c -L "Arch Linux LTS" -l /vmlinuz-linux-lts -u "rd.luks.name=$drive_id=cryptlvm root=/dev/vg0/root resume=/dev/vg0/swap initrd=\initramfs-linux-lts.img $cmdline"
-
-#efibootmgr -o 0
-
-#END
-#chmod +x /etc/make-efi.sh
-#sh make-efi
-
 echo "Setting up systemd-boot"
 bootctl --path=/boot install
 
@@ -133,7 +118,7 @@ mkdir -p /boot/loader/
 touch /boot/loader/loader.conf
 tee -a /boot/loader/loader.conf << END
 default archck.conf
-timeout 0
+timeout 3
 editor 0
 END
 
@@ -145,7 +130,7 @@ title Arch Linux CK
 linux /vmlinuz-linux-ck-skylake
 initrd /intel-ucode.img
 initrd /initramfs-linux-ck-skylake.img
-options rd.luks.name=$drive_id=cryptlvm root=/dev/vg0/root resume=/dev/vg0/swap rd.luks.options=discard elevator=none i915.fastboot=1 i915.enable_psr=1 quiet loglevel=3 splash rw
+options rd.luks.name=$drive_id=cryptlvm root=/dev/vg0/root resume=/dev/vg0/swap rd.luks.options=discard quiet loglevel=3 splash rw
 END
 
 touch /boot/loader/entries/arch.conf
@@ -154,7 +139,7 @@ title Arch Linux
 linux /vmlinuz-linux
 initrd /intel-ucode.img
 initrd /initramfs-linux.img
-options rd.luks.name=$drive_id=cryptlvm root=/dev/vg0/root resume=/dev/vg0/swap rd.luks.options=discard elevator=none i915.fastboot=1 i915.enable_psr=1 quiet loglevel=3 splash rw
+options rd.luks.name=$drive_id=cryptlvm root=/dev/vg0/root resume=/dev/vg0/swap rd.luks.options=discard quiet loglevel=3 splash rw
 END
 
 touch /boot/loader/entries/archlts.conf
@@ -163,7 +148,7 @@ title Arch Linux LTS
 linux /vmlinuz-linux-lts
 initrd /intel-ucode.img
 initrd /initramfs-linux-lts.img
-options rd.luks.name=$drive_id=cryptlvm root=/dev/vg0/root resume=/dev/vg0/swap rd.luks.options=discard elevator=none i915.fastboot=1 i915.enable_psr=1 quiet loglevel=3 splash rw
+options rd.luks.name=$drive_id=cryptlvm root=/dev/vg0/root resume=/dev/vg0/swap rd.luks.options=discard quiet loglevel=3 splash rw
 END
 
 echo "Setting up Pacman hook for automatic systemd-boot updates"
@@ -228,7 +213,7 @@ echo "Enabling Network Manager"
 systemctl enable NetworkManager
 
 echo "User Config"
-echo '%wheel ALL=(ALL) ALL' | EDITOR='tee -a' visudo
+#echo '%wheel ALL=(ALL) ALL' | EDITOR='tee -a' visudo
 
 wget https://raw.githubusercontent.com/brianclemens/dotfiles/011a080c6f5e87631623baf0aad826ff2b99566c/misc/sudoers.lecture
 mv sudoers.lecture /etc/bee-sudoers.lecture
@@ -242,14 +227,14 @@ sh larbs.sh
 sed -i 's/COMPRESSXZ=(xz -c -z -)/COMPRESSXZ=(xz -c -z - --threads=0)/g' /etc/makepkg.conf
 sed -i 's/COMPRESSGZ=(gzip -c -f -n)/COMPRESSGZ=(pigz -c -f -n)/g' /etc/makepkg.conf
 
-#echo "Setting autologin"
-#mkdir -p /etc/systemd/system/getty@tty1.service.d
-#tee -a /etc/systemd/system/getty@tty1.service.d/override.conf << END
-#[Service]
-#Type=Simple
-#ExecStart=
-#ExecStart=-/usr/bin/agetty --autologin $user_name --noclear %I \$TERM
-#END
+echo "Setting autologin"
+mkdir -p /etc/systemd/system/getty@tty1.service.d
+tee -a /etc/systemd/system/getty@tty1.service.d/override.conf << END
+[Service]
+Type=Simple
+ExecStart=
+ExecStart=-/usr/bin/agetty --autologin $user_name --noclear %I \$TERM
+END
 
 echo "Hardening TCP/IP stack"
 ufw default deny
