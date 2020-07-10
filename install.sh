@@ -206,13 +206,11 @@ vm.dirty_background_ratio = 3
 vm.dirty_writeback_centisecs = 1500
 END
 
-echo "Enabling periodic TRIM"
-systemctl enable fstrim.timer
-
 echo "Enabling Network Manager"
 systemctl enable NetworkManager
 
 echo "User Config"
+reflector -a 2 -l 100 -f 10 --sort score --save /etc/pacman.d/mirrorlist
 #echo '%wheel ALL=(ALL) ALL' | EDITOR='tee -a' visudo
 
 wget https://raw.githubusercontent.com/brianclemens/dotfiles/011a080c6f5e87631623baf0aad826ff2b99566c/misc/sudoers.lecture
