@@ -1,12 +1,12 @@
 #!/bin/bash
 
-encryption_passphrase=""
-root_password=""
-#user_password=""
-hostname=""
-user_name=""
-continent_city=""
-swap_size="32"
+encryption_passphrase=''
+root_password=''
+#user_password=''
+hostname=''
+user_name=''
+continent_city=''
+swap_size='32'
 
 echo "Updating system clock"
 timedatectl set-ntp true
@@ -22,7 +22,7 @@ pacman -Sy reflector --noconfirm
 reflector -a 2 -l 100 -f 10 --sort score --save /etc/pacman.d/mirrorlist
 
 echo "Creating partition tables"
-blkdiscard /dev/nvme0n1
+blkdiscard /dev/nvme0n1 -f
 printf "o\nw\ny\n" | gdisk /dev/nvme0n1
 printf "n\n1\n4096\n+512M\nef00\nw\ny\n" | gdisk /dev/nvme0n1
 printf "n\n2\n\n\n8e00\nw\ny\n" | gdisk /dev/nvme0n1
@@ -102,13 +102,6 @@ sed -i 's/#COMPRESSION_OPTIONS=()/COMPRESSION_OPTIONS=(-9)/g' /etc/mkinitcpio.co
 mkinitcpio -p linux
 mkinitcpio -p linux-lts
 
-tee -a /etc/pacman.conf << END
-[repo-ck]
-Server = http://repo-ck.com/x86_64
-END
-pacman-key -r 5EE46C4C && pacman-key --lsign-key 5EE46C4C
-pacman -Sy linux-ck-skylake linux-ck-skylake-headers
-
 drive_id="$(blkid -s UUID -o value /dev/nvme0n1p2)"
 
 echo "Setting up systemd-boot"
@@ -117,19 +110,19 @@ bootctl --path=/boot install
 mkdir -p /boot/loader/
 touch /boot/loader/loader.conf
 tee -a /boot/loader/loader.conf << END
-default archck.conf
+default arch.conf
 timeout 3
 editor 0
 END
 
 mkdir -p /boot/loader/entries/
 
-touch /boot/loader/entries/archck.conf
-tee -a /boot/loader/entries/archck.conf << END
-title Arch Linux CK
-linux /vmlinuz-linux-ck-skylake
+touch /boot/loader/entries/archlts.conf
+tee -a /boot/loader/entries/archlts.conf << END
+title Arch Linux LTS
+linux /vmlinuz-linux-lts
 initrd /intel-ucode.img
-initrd /initramfs-linux-ck-skylake.img
+initrd /initramfs-linux-lts.img
 options rd.luks.name=$drive_id=cryptlvm root=/dev/vg0/root resume=/dev/vg0/swap rd.luks.options=discard quiet loglevel=3 splash rw
 END
 
@@ -139,15 +132,6 @@ title Arch Linux
 linux /vmlinuz-linux
 initrd /intel-ucode.img
 initrd /initramfs-linux.img
-options rd.luks.name=$drive_id=cryptlvm root=/dev/vg0/root resume=/dev/vg0/swap rd.luks.options=discard quiet loglevel=3 splash rw
-END
-
-touch /boot/loader/entries/archlts.conf
-tee -a /boot/loader/entries/archlts.conf << END
-title Arch Linux LTS
-linux /vmlinuz-linux-lts
-initrd /intel-ucode.img
-initrd /initramfs-linux-lts.img
 options rd.luks.name=$drive_id=cryptlvm root=/dev/vg0/root resume=/dev/vg0/swap rd.luks.options=discard quiet loglevel=3 splash rw
 END
 
@@ -166,7 +150,6 @@ When = PostTransaction
 Exec = /usr/bin/bootctl update
 END
 
-mkinitcpio -p linux-ck-skylake
 mkinitcpio -p linux
 mkinitcpio -p linux-lts
 
@@ -297,9 +280,7 @@ END
 echo "Final application setup"
 wget https://raw.githubusercontent.com/kant5t1km3/archinstall/master/pkglist 
 pacman -Syu --noconfirm - < pkglist
-sudo systemctl enable --now lenovo_fix.service
-yay -S --noconfirm slack-desktop spotify libreoffice codium-bin s-tui cava protonmail-bridge tuir
-sudo pip3 install somafm colorama requests
+#sudo systemctl enable --now lenovo_fix.service
 
 # Exit arch-chroot
 EOF
@@ -307,4 +288,4 @@ EOF
 umount -R /mnt
 swapoff -a
 
-echo "ArchLinux is ready. You can reboot now!"
+echo "Arch Linux is ready. You can reboot now!"
