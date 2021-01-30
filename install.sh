@@ -2,7 +2,7 @@
 
 encryption_passphrase=''
 root_password=''
-#user_password=''
+user_password=''
 hostname=''
 user_name=''
 continent_city=''
